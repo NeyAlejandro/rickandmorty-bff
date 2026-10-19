@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rick and Morty - Explorador Interdimensional (BFF)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        portal: {
+                            green: '#97ce4c',
+                            neon: '#00ff9c',
+                            cyan: '#00b5cc',
+                            dark: '#0b0f19',
+                            card: '#151c2c'
+                        }
+                    }
+                }
+            }
+        };
+    </script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans selection:bg-emerald-500 selection:text-slate-950">
+
+    <!-- Header -->
+    <header class="border-b border-emerald-500/20 bg-slate-900/80 backdrop-blur-md sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col md:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-emerald-500 to-cyan-400 animate-pulse shadow-lg shadow-emerald-500/30 flex items-center justify-center font-extrabold text-slate-950 text-xl">
+                    R&M
+                </div>
+                <div>
+                    <h1 class="text-2xl sm:text-3xl font-extrabold bg-gradient-to-r from-emerald-400 via-lime-300 to-cyan-400 bg-clip-text text-transparent">
+                        Rick & Morty BFF Explorer
+                    </h1>
+                    <p class="text-xs text-slate-400">Backend-For-Frontend con Spring Boot & Vanilla JS</p>
+                </div>
+            </div>
+
+            <!-- Buscador con Debounce de 4000ms -->
+            <div class="w-full md:w-96 relative">
+                <div class="relative flex items-center">
+                    <svg class="w-5 h-5 text-emerald-400 absolute left-3.5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                    <input
+                        id="searchInput"
+                        type="text"
+                        placeholder="Buscar personaje por nombre (espera 4s)..."
+                        autocomplete="off"
+                        class="w-full pl-11 pr-10 py-2.5 bg-slate-950/90 border border-emerald-500/40 rounded-xl text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                    />
+                    <div id="debounceIndicator" class="hidden absolute right-3">
+                        <span class="flex h-3 w-3">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                        </span>
+                    </div>
+                </div>
+                <p id="debounceStatus" class="text-[11px] text-emerald-400/80 mt-1 hidden">
+                    Esperando 4 segundos sin escritura para consultar al BFF...
+                </p>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Estado de carga -->
+        <div id="loadingState" class="hidden flex-col items-center justify-center py-20">
+            <div class="w-14 h-14 border-4 border-emerald-500/30 border-t-emerald-400 rounded-full animate-spin mb-4"></div>
+            <p class="text-emerald-300 font-medium tracking-wide">Abriendo portal interdimensional...</p>
+        </div>
+
+        <!-- Estado vacío / sin resultados -->
+        <div id="emptyState" class="hidden flex-col items-center justify-center py-20 text-center">
+            <div class="text-5xl mb-3">🛸</div>
+            <h2 class="text-xl font-bold text-slate-200">No se encontraron personajes en esta dimensión</h2>
+            <p class="text-slate-400 text-sm mt-1">Intenta buscar con otro nombre.</p>
+        </div>
+
+        <!-- Grid de Tarjetas -->
+        <section id="charactersGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"></section>
+    </main>
+
+    <!-- Modal Centrado de Detalle -->
+    <div id="detailModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+        <div class="relative w-full max-w-md bg-slate-900 border border-emerald-500/40 rounded-2xl shadow-2xl shadow-emerald-500/10 overflow-hidden transform transition-all">
+            <!-- Botón Cerrar -->
+            <button
+                id="closeModalBtn"
+                type="button"
+                aria-label="Cerrar modal"
+                class="absolute top-3 right-3 z-10 w-9 h-9 rounded-full bg-slate-950/80 text-slate-300 hover:text-white hover:bg-emerald-500/20 border border-slate-700 flex items-center justify-center transition-colors"
+            >
+                ✕
+            </button>
+
+            <!-- Cabecera del Modal con Imagen -->
+            <div class="relative h-64 w-full bg-slate-950">
+                <img id="modalImage" src="" alt="Personaje" class="w-full h-full object-cover" />
+                <div class="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/30 to-transparent"></div>
+                <div class="absolute bottom-4 left-5 right-5">
+                    <span id="modalSpecies" class="inline-block px-3 py-0.5 text-xs font-semibold rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 mb-1"></span>
+                    <h3 id="modalName" class="text-2xl font-extrabold text-white drop-shadow"></h3>
+                </div>
+            </div>
+
+            <!-- Cuerpo del Modal -->
+            <div class="p-6 space-y-4">
+                <div class="p-4 rounded-xl bg-slate-950/80 border border-slate-800">
+                    <p class="text-xs uppercase tracking-wider text-cyan-400 font-semibold mb-1">Dimensión de Origen / Ubicación</p>
+                    <p id="modalDimension" class="text-base font-medium text-slate-100">Cargando dimensión...</p>
+                    <p id="modalLocationName" class="text-xs text-slate-400 mt-0.5"></p>
+                </div>
+
+                <div class="p-4 rounded-xl bg-slate-950/80 border border-slate-800">
+                    <p class="text-xs uppercase tracking-wider text-emerald-400 font-semibold mb-1">Primer Episodio</p>
+                    <p id="modalEpisode" class="text-base font-medium text-slate-100">Cargando episodio...</p>
+                    <p id="modalEpisodeCode" class="text-xs text-slate-400 mt-0.5"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lógica Vanilla JS -->
+    <script>
+        const searchInput = document.getElementById('searchInput');
+        const debounceIndicator = document.getElementById('debounceIndicator');
+        const debounceStatus = document.getElementById('debounceStatus');
+        const charactersGrid = document.getElementById('charactersGrid');
+        const loadingState = document.getElementById('loadingState');
+        const emptyState = document.getElementById('emptyState');
+
+        const detailModal = document.getElementById('detailModal');
+        const closeModalBtn = document.getElementById('closeModalBtn');
+        const modalImage = document.getElementById('modalImage');
+        const modalName = document.getElementById('modalName');
+        const modalSpecies = document.getElementById('modalSpecies');
+        const modalDimension = document.getElementById('modalDimension');
+        const modalLocationName = document.getElementById('modalLocationName');
+        const modalEpisode = document.getElementById('modalEpisode');
+        const modalEpisodeCode = document.getElementById('modalEpisodeCode');
+
+        /**
+         * Función Debounce exacta de 4000 milisegundos (4 segundos)
+         */
+        function debounce(func, delay = 4000) {
+            let timeoutId;
+            return function (...args) {
+                clearTimeout(timeoutId);
+                debounceIndicator.classList.remove('hidden');
+                debounceStatus.classList.remove('hidden');
+
+                timeoutId = setTimeout(() => {
+                    debounceIndicator.classList.add('hidden');
+                    debounceStatus.classList.add('hidden');
+                    func.apply(this, args);
+                }, delay);
+            };
+        }
+
+        /**
+         * Extrae el ID numérico final de una URL de referencia (ej. ".../location/1" -> "1")
+         */
+        function extractIdFromUrl(url) {
+            if (!url || typeof url !== 'string' || url.trim() === '') {
+                return null;
+            }
+            const parts = url.split('/').filter(Boolean);
+            const lastPart = parts[parts.length - 1];
+            return /^\d+$/.test(lastPart) ? lastPart : null;
+        }
+
+        // Si se sirve desde Spring Boot (http://localhost:8080) usa ruta relativa '';
+        // si se abre por error con doble clic (file://) apunta al servidor local de Spring Boot.
+        const API_BASE = window.location.protocol === 'file:' ? 'http://localhost:8080' : '';
+
+        /**
+         * Obtiene los personajes desde el endpoint local del BFF (/api/personajes)
+         */
+        async function cargarPersonajes(nombre = '') {
+            mostrarCarga(true);
+            try {
+                const query = nombre.trim()
+                    ? `?name=${encodeURIComponent(nombre.trim())}`
+                    : '';
+                const response = await fetch(`${API_BASE}/api/personajes${query}`);
+                if (!response.ok) {
+                    throw new Error(`Error HTTP: ${response.status}`);
+                }
+                const personajes = await response.json();
+                renderizarPersonajes(personajes);
+            } catch (error) {
+                console.error('Error al consultar /api/personajes:', error);
+                renderizarPersonajes([]);
+            } finally {
+                mostrarCarga(false);
+            }
+        }
+
+        /**
+         * Renderiza las tarjetas de personajes en el grid
+         */
+        function renderizarPersonajes(personajes) {
+            charactersGrid.innerHTML = '';
+
+            if (!Array.isArray(personajes) || personajes.length === 0) {
+                emptyState.classList.remove('hidden');
+                emptyState.classList.add('flex');
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+            emptyState.classList.remove('flex');
+
+            personajes.forEach((personaje) => {
+                const card = document.createElement('article');
+                card.className =
+                    'group bg-slate-900/90 border border-slate-800 hover:border-emerald-500/60 rounded-2xl overflow-hidden shadow-lg hover:shadow-emerald-500/10 transition-all duration-300 cursor-pointer flex flex-col';
+
+                card.innerHTML = `
+                    <div class="relative h-56 overflow-hidden bg-slate-950">
+                        <img
+                            src="${personaje.image}"
+                            alt="${personaje.name}"
+                            loading="lazy"
+                            class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        />
+                        <div class="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent opacity-80"></div>
+                    </div>
+                    <div class="p-4 flex-1 flex flex-col justify-between">
+                        <div>
+                            <h2 class="text-lg font-bold text-slate-100 group-hover:text-emerald-400 transition-colors truncate">
+                                ${personaje.name}
+                            </h2>
+                            <p class="text-sm text-emerald-400/90 font-medium mt-1">
+                                ${personaje.species}
+                            </p>
+                        </div>
+                        <div class="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
+                            <span>Ver expediente dimensional</span>
+                            <span class="text-emerald-400 group-hover:translate-x-1 transition-transform">→</span>
+                        </div>
+                    </div>
+                `;
+
+                card.addEventListener('click', () => abrirModalDetalle(personaje));
+                charactersGrid.appendChild(card);
+            });
+        }
+
+        /**
+         * Abre el modal centrado y consulta los endpoints locales /api/ubicaciones/{id} y /api/episodios/{id}
+         */
+        async function abrirModalDetalle(personaje) {
+            modalImage.src = personaje.image || '';
+            modalImage.alt = personaje.name || 'Personaje';
+            modalName.textContent = personaje.name || 'Desconocido';
+            modalSpecies.textContent = personaje.species || 'Especie desconocida';
+
+            modalDimension.textContent = 'Consultando BFF...';
+            modalLocationName.textContent = '';
+            modalEpisode.textContent = 'Consultando BFF...';
+            modalEpisodeCode.textContent = '';
+
+            detailModal.classList.remove('hidden');
+            detailModal.classList.add('flex');
+
+            // 1. Obtener ID de ubicación (priorizando origin, o location como respaldo)
+            const originUrl = personaje.origin && personaje.origin.url ? personaje.origin.url : '';
+            const locationUrl = personaje.location && personaje.location.url ? personaje.location.url : '';
+            const locationId = extractIdFromUrl(originUrl) || extractIdFromUrl(locationUrl);
+
+            // 2. Obtener ID del primer episodio
+            const firstEpisodeUrl =
+                Array.isArray(personaje.episode) && personaje.episode.length > 0
+                    ? personaje.episode[0]
+                    : '';
+            const episodeId = extractIdFromUrl(firstEpisodeUrl);
+
+            // Petición local de Ubicación (/api/ubicaciones/{id})
+            if (locationId) {
+                try {
+                    const locRes = await fetch(`${API_BASE}/api/ubicaciones/${locationId}`);
+                    if (locRes.ok) {
+                        const locData = await locRes.json();
+                        modalDimension.textContent = locData.dimension || 'Dimensión desconocida';
+                        modalLocationName.textContent = locData.name ? `Lugar: ${locData.name}` : '';
+                    } else {
+                        modalDimension.textContent = 'Dimensión desconocida';
+                    }
+                } catch (err) {
+                    console.error('Error al obtener ubicación local:', err);
+                    modalDimension.textContent = 'Error al cargar dimensión';
+                }
+            } else {
+                modalDimension.textContent = 'Dimensión desconocida (unknown)';
+                const refName =
+                    (personaje.origin && personaje.origin.name) ||
+                    (personaje.location && personaje.location.name) ||
+                    '';
+                modalLocationName.textContent = refName ? `Referencia: ${refName}` : '';
+            }
+
+            // Petición local de Episodio (/api/episodios/{id})
+            if (episodeId) {
+                try {
+                    const epRes = await fetch(`${API_BASE}/api/episodios/${episodeId}`);
+                    if (epRes.ok) {
+                        const epData = await epRes.json();
+                        modalEpisode.textContent = epData.name || 'Episodio desconocido';
+                        modalEpisodeCode.textContent = epData.episode ? `Código: ${epData.episode}` : '';
+                    } else {
+                        modalEpisode.textContent = 'No disponible';
+                    }
+                } catch (err) {
+                    console.error('Error al obtener episodio local:', err);
+                    modalEpisode.textContent = 'Error al cargar episodio';
+                }
+            } else {
+                modalEpisode.textContent = 'Sin episodios registrados';
+            }
+        }
+
+        function cerrarModal() {
+            detailModal.classList.add('hidden');
+            detailModal.classList.remove('flex');
+        }
+
+        function mostrarCarga(activo) {
+            if (activo) {
+                loadingState.classList.remove('hidden');
+                loadingState.classList.add('flex');
+                charactersGrid.classList.add('hidden');
+                emptyState.classList.add('hidden');
+            } else {
+                loadingState.classList.add('hidden');
+                loadingState.classList.remove('flex');
+                charactersGrid.classList.remove('hidden');
+            }
+        }
+
+        // Eventos del modal
+        closeModalBtn.addEventListener('click', cerrarModal);
+        detailModal.addEventListener('click', (event) => {
+            if (event.target === detailModal) {
+                cerrarModal();
+            }
+        });
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && !detailModal.classList.contains('hidden')) {
+                cerrarModal();
+            }
+        });
+
+        // Evento de búsqueda con debounce exacto de 4000ms
+        const buscarConDebounce = debounce((valor) => {
+            cargarPersonajes(valor);
+        }, 4000);
+
+        searchInput.addEventListener('input', (event) => {
+            buscarConDebounce(event.target.value);
+        });
+
+        // Carga inicial de personajes desde el BFF
+        document.addEventListener('DOMContentLoaded', () => {
+            cargarPersonajes();
+        });
+    </script>
+</body>
+</html>
+

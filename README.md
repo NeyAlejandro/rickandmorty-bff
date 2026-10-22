@@ -1,89 +1,102 @@
 # 🛸 Rick and Morty Monorepo BFF (API Composition)
 
-Aplicación Full-Stack implementada bajo el patrón arquitectónico **Backend-For-Frontend (BFF)** y **API Composition (Endpoints Anidados)** con **Java 17**, **Spring Boot (`RestTemplate`)** y **Vanilla JS + Tailwind CSS**, acompañada de pruebas **End-to-End (E2E)** automatizadas con **Playwright**.
+Full-Stack application built using the **Backend-For-Frontend (BFF)** and **API Composition (Nested Endpoints)** patterns with **Java 17**, **Spring Boot (`RestTemplate`)**, and **Vanilla JS + Tailwind CSS**, including automated **End-to-End (E2E)** tests powered by **Playwright**.
 
 ---
 
-## 🏗️ Arquitectura del Proyecto (API Composition)
+## 🏗️ Project Architecture (API Composition)
 
-El frontend estático es servido directamente por Spring Boot en `http://localhost:8080` y consume un único endpoint local compuesto (`/api/personaje/buscar?nombre=X`). Internamente, el backend encadena tres peticiones con `RestTemplate` hacia la API pública de Rick and Morty (`rickandmortyapi.com`) y devuelve los objetos JSON consolidados en un solo paso:
+The static frontend is served directly by Spring Boot at `http://localhost:8080` and consumes a single consolidated local endpoint (`/api/personaje/buscar?nombre=X`). Internally, the backend chains three HTTP GET requests using `RestTemplate` against the public Rick and Morty API (`rickandmortyapi.com`) and returns the consolidated JSON payload in a single step:
 
 ```text
-[ Navegador (index.html + app.js + Tailwind CSS) ]
+[ Browser (index.html + app.js + Tailwind CSS) ]
                        │
                        ▼  GET /api/personaje/buscar?nombre=X
 [ Backend-For-Frontend (Spring Boot :8080 - RestTemplate) ]
    ├── 1. GET https://rickandmortyapi.com/api/character/?name=X
-   ├── 2. GET location.url  -> Extrae la dimensión (dimension)
-   └── 3. GET episode[0]    -> Extrae el nombre del primer episodio (name)
+   ├── 2. GET location.url  -> Extracts the origin/location dimension
+   └── 3. GET episode[0]    -> Extracts the first episode name
 ```
 
 ---
 
-## 📂 Estructura del Proyecto
+## 📂 Project Structure
 
 ```text
 rickandmorty/
 ├── src/main/
 │   ├── java/com/proyecto/rickandmorty/
 │   │   ├── controller/
-│   │   │   └── RickAndMortyController.java      # Endpoint único: GET /api/personaje/buscar?nombre=X
+│   │   │   └── RickAndMortyController.java      # Consolidated endpoint: GET /api/personaje/buscar?nombre=X
 │   │   ├── model/
-│   │   │   ├── PersonajeConsolidadoDTO.java     # DTO consolidado (personaje + dimensión + 1er episodio)
-│   │   │   ├── CharacterDTO.java                # DTO de personaje externo
-│   │   │   ├── CharacterResponseDTO.java        # Wrapper de respuesta paginada
-│   │   │   ├── LocationDTO.java                 # DTO de ubicación externa
-│   │   │   └── EpisodeDTO.java                  # DTO de episodio externo
+│   │   │   ├── PersonajeConsolidadoDTO.java     # Consolidated DTO (character + dimension + 1st episode)
+│   │   │   ├── CharacterDTO.java                # External API character DTO
+│   │   │   ├── CharacterResponseDTO.java        # Paginated response wrapper DTO
+│   │   │   ├── LocationDTO.java                 # External API location DTO
+│   │   │   └── EpisodeDTO.java                  # External API episode DTO
 │   │   ├── service/
-│   │   │   └── RickAndMortyService.java         # Servicio que encadena las 3 peticiones con RestTemplate
-│   │   └── RickandmortyApplication.java         # Clase principal de Spring Boot
+│   │   │   └── RickAndMortyService.java         # Service chaining 3 HTTP calls via RestTemplate
+│   │   └── RickandmortyApplication.java         # Spring Boot main application class
 │   └── resources/
 │       ├── static/
-│       │   ├── index.html                       # Estructura base con Tailwind CSS (CDN)
-│       │   └── app.js                           # Debounce de 4000ms + tarjetas y modal 100% desde el DOM
+│       │   ├── index.html                       # Dark-themed UI using Tailwind CSS (CDN)
+│       │   └── app.js                           # Strict 4000ms debounce + 100% DOM-rendered cards & modal
 │       └── application.properties
 ├── tests/
-│   └── rickandmorty.spec.js                     # Pruebas E2E automatizadas con Playwright
-├── playwright.config.js                         # Configuración de Playwright para http://localhost:8080
-├── package.json                                 # Scripts de pruebas E2E
-└── pom.xml                                      # Configuración Maven (Spring Web + Java 17)
+│   └── rickandmorty.spec.js                     # Automated E2E test suite with Playwright
+├── playwright.config.js                         # Playwright configuration targeting http://localhost:8080
+├── package.json                                 # E2E test runner scripts
+└── pom.xml                                      # Maven configuration (Spring Web + Java 17)
 ```
 
 ---
 
-## 🚀 Endpoint Compuesto del Backend
+## 🚀 Backend API Endpoint
 
-| Método | Ruta Local | Parámetro | Descripción |
+| Method | Local Route | Query Param | Description |
 | :--- | :--- | :--- | :--- |
-| `GET` | `/api/personaje/buscar` | `nombre` *(opcional)* | Encadena las peticiones de personaje, ubicación (`location.url`) y primer episodio (`episode[0]`) y devuelve el JSON consolidado. |
+| `GET` | `/api/personaje/buscar` | `nombre` *(optional)* | Chains the character, location (`location.url`), and first episode (`episode[0]`) requests and returns the consolidated JSON response. |
 
 ---
 
-## 🛠️ Ejecución del Proyecto
+## ✨ Key Features
 
-Desde la raíz del proyecto, inicia el servidor de Spring Boot:
+- **Dark Thematic UI**: Built with **Tailwind CSS** utility classes via CDN.
+- **Strict 4000ms Debounce Search**: Includes a `debounce` function with a strict 4-second delay before firing the `fetch` request to the local backend.
+- **100% Vanilla JS DOM Manipulation**: Both the character cards and the detail modal are dynamically rendered using `innerHTML` and JavaScript *Template Literals*, displaying all nested data returned by the backend in a single step.
+
+---
+
+## 🛠️ Running the Application
+
+From the project root directory, start the Spring Boot server:
 
 ```powershell
 .\mvnw.cmd spring-boot:run
 ```
 
-Luego abre en tu navegador:
+Once started, open your browser at:
 👉 **`http://localhost:8080`**
 
 ---
 
-## 🧪 Ejecución de las Pruebas E2E (Playwright)
+## 🧪 Running E2E Tests (Playwright)
+
+The `tests/rickandmorty.spec.js` suite validates three critical flows:
+1. **Initial Load**: Verifies that the 20 consolidated character cards render with nested data on startup.
+2. **Strict Debounce Validation (4000ms)**: Verifies that typing `"Morty"` does not trigger any network request before 4 seconds and updates the UI once the 4000ms window completes.
+3. **Modal Interaction**: Clicks a character card and verifies that the modal is dynamically injected into the DOM displaying the consolidated dimension and first episode details.
 
 ```powershell
-# Ejecutar las 3 pruebas E2E en consola (modo headless)
+# Run all E2E tests in headless mode
 npm test
 
-# Ejecutar las pruebas abriendo el navegador en vivo
+# Run tests with the browser window visible
 npm run test:headed
 
-# Abrir el panel interactivo de Playwright (modo UI)
+# Open Playwright interactive UI mode
 npm run test:ui
 
-# Abrir el reporte visual HTML de Playwright
+# Open the visual HTML report with screenshots and traces
 npx playwright show-report
 ```

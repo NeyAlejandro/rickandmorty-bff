@@ -1,4 +1,4 @@
-# 🛸 Rick and Morty Monorepo BFF (API Composition)
+# 🛸 Rick and Morty BFF (API Composition)
 
 Full-Stack application built using the **Backend-For-Frontend (BFF)** and **API Composition (Nested Endpoints)** patterns with **Java 17**, **Spring Boot (`RestTemplate`)**, and **Vanilla JS + Tailwind CSS**, including automated **End-to-End (E2E)** tests powered by **Playwright**.
 
